@@ -25,7 +25,8 @@ jobs:
 
   deploy:
     name: Job2 - Deploiement sur runner_prod
-runs-on: self-hosted    needs: scan
+    runs-on: self-hosted
+    needs: scan
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
