@@ -1,0 +1,42 @@
+name: CD Pipeline - Branch Prod
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  scan:
+    name: Job1 - Scan Securite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build image pour scan
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/intranet-newdeal:latest .
+
+      - name: Scan vulnerabilites avec Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/intranet-newdeal:latest
+          format: table
+          exit-code: '0'
+
+  deploy:
+    name: Job2 - Deploiement sur runner_prod
+    runs-on: [self-hosted, runner_prod]
+    needs: scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Pull et Deploy sur port 80
+        run: |
+          docker pull ${{ secrets.DOCKER_USERNAME }}/intranet-newdeal:latest
+          docker stop intranet || true
+          docker rm intranet || true
+          docker run -d --name intranet -p 80:80 ${{ secrets.DOCKER_USERNAME }}/intranet-newdeal:latest
